@@ -1,0 +1,20 @@
+# Exclude everything
+*
+
+# Include necessary files
+!package*.json
+!src/
+!service-account.json
+
+# But exclude these even if they're in src/
+**/node_modules
+**/.env
+**/.env.*
+**/*.log
+**/logs
+**/.git
+**/.gitignore
+**/.dockerignore
+**/Dockerfile
+**/.vscode
+**/.idea
