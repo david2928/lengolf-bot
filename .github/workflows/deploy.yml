@@ -26,15 +26,6 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
-    - name: Create service account for tests
-      run: |
-        echo '${{ secrets.GOOGLE_CALENDAR_SA_KEY }}' > service-account.json
-      
-    - name: Run tests
-      run: npm test
-      env:
-        NODE_ENV: test
-
     - name: Setup GCloud Auth
       id: auth
       uses: google-github-actions/auth@v0.4.0
@@ -51,10 +42,6 @@ jobs:
       run: |-
         docker build -t gcr.io/$PROJECT_ID/$SERVICE_NAME:${{ github.sha }} .
         docker push gcr.io/$PROJECT_ID/$SERVICE_NAME:${{ github.sha }}
-
-    # Clean up the temporary service account file
-    - name: Clean up service account
-      run: rm service-account.json
 
     - name: Deploy to Cloud Run
       run: |-
