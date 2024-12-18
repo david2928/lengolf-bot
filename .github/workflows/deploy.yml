@@ -37,19 +37,9 @@ jobs:
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v2
 
-    - name: Configure Artifact Registry
+    - name: Configure Docker for Artifact Registry
       run: |-
-        # Enable the Artifact Registry API
-        gcloud services enable artifactregistry.googleapis.com
-        
-        # Configure docker to use gcloud credentials
         gcloud auth configure-docker $REGISTRY --quiet
-        
-        # Create repository if it doesn't exist
-        gcloud artifacts repositories create $REPOSITORY \
-          --repository-format=docker \
-          --location=$REGION \
-          --description="Container repository for LINE bot" || true
 
     - name: Build and Push Container
       run: |-
@@ -59,9 +49,6 @@ jobs:
 
     - name: Deploy to Cloud Run
       run: |-
-        # Enable Secret Manager API if not already enabled
-        gcloud services enable secretmanager.googleapis.com
-        
         # Create or update the secret for Google Calendar credentials
         echo '${{ secrets.GOOGLE_CALENDAR_SA_KEY }}' > calendar-sa.json
         gcloud secrets create calendar-service-account --data-file=calendar-sa.json --replication-policy="automatic" || true
