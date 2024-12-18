@@ -9,6 +9,7 @@ env:
   PROJECT_ID: lengolf-forms
   REGION: asia-southeast1
   SERVICE_NAME: lengolf-bot
+  REPOSITORY: line-bot-containers
   REGISTRY: asia-southeast1-docker.pkg.dev
 
 jobs:
@@ -17,10 +18,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Setup Node.js
-      uses: actions/setup-node@v2
+      uses: actions/setup-node@v4
       with:
         node-version: '20'
 
@@ -28,35 +29,40 @@ jobs:
       run: npm ci
 
     - name: Setup GCloud Auth
-      id: auth
-      uses: google-github-actions/auth@v0.4.0
+      uses: google-github-actions/auth@v2
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
         project_id: lengolf-forms
 
     - name: Set up Cloud SDK
-      uses: google-github-actions/setup-gcloud@v0.2.1
+      uses: google-github-actions/setup-gcloud@v2
 
     - name: Configure Artifact Registry
       run: |-
+        # Enable the Artifact Registry API
+        gcloud services enable artifactregistry.googleapis.com
+        
         # Configure docker to use gcloud credentials
         gcloud auth configure-docker $REGISTRY --quiet
         
         # Create repository if it doesn't exist
-        gcloud artifacts repositories create lengolf-bot \
+        gcloud artifacts repositories create $REPOSITORY \
           --repository-format=docker \
           --location=$REGION \
-          --quiet || true
+          --description="Container repository for LINE bot" || true
 
     - name: Build and Push Container
       run: |-
         echo "Building image for project: $PROJECT_ID"
-        docker build -t $REGISTRY/$PROJECT_ID/lengolf-bot/$SERVICE_NAME:${{ github.sha }} .
-        docker push $REGISTRY/$PROJECT_ID/lengolf-bot/$SERVICE_NAME:${{ github.sha }}
+        docker build -t $REGISTRY/$PROJECT_ID/$REPOSITORY/$SERVICE_NAME:${{ github.sha }} .
+        docker push $REGISTRY/$PROJECT_ID/$REPOSITORY/$SERVICE_NAME:${{ github.sha }}
 
     - name: Deploy to Cloud Run
       run: |-
-        # First create a secret for Google Calendar credentials
+        # Enable Secret Manager API if not already enabled
+        gcloud services enable secretmanager.googleapis.com
+        
+        # Create or update the secret for Google Calendar credentials
         echo '${{ secrets.GOOGLE_CALENDAR_SA_KEY }}' > calendar-sa.json
         gcloud secrets create calendar-service-account --data-file=calendar-sa.json --replication-policy="automatic" || true
         gcloud secrets versions add calendar-service-account --data-file=calendar-sa.json
@@ -64,7 +70,7 @@ jobs:
 
         # Deploy the service
         gcloud run deploy $SERVICE_NAME \
-          --image $REGISTRY/$PROJECT_ID/lengolf-bot/$SERVICE_NAME:${{ github.sha }} \
+          --image $REGISTRY/$PROJECT_ID/$REPOSITORY/$SERVICE_NAME:${{ github.sha }} \
           --platform managed \
           --region $REGION \
           --allow-unauthenticated \
