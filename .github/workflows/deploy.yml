@@ -6,7 +6,7 @@ on:
       - main
 
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  PROJECT_ID: lengolf-forms
   REGION: asia-southeast1
   SERVICE_NAME: lengolf-bot
 
@@ -31,17 +31,20 @@ jobs:
       uses: google-github-actions/auth@v0.4.0
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
+        project_id: lengolf-forms
 
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v0.2.1
 
     - name: Configure Docker
-      run: gcloud auth configure-docker
+      run: |-
+        gcloud auth configure-docker --quiet
 
     - name: Build and Push Container
       run: |-
-        docker build -t gcr.io/$PROJECT_ID/$SERVICE_NAME:${{ github.sha }} .
-        docker push gcr.io/$PROJECT_ID/$SERVICE_NAME:${{ github.sha }}
+        echo "Building image for project: $PROJECT_ID"
+        docker build -t gcr.io/lengolf-forms/$SERVICE_NAME:${{ github.sha }} .
+        docker push gcr.io/lengolf-forms/$SERVICE_NAME:${{ github.sha }}
 
     - name: Deploy to Cloud Run
       run: |-
@@ -53,7 +56,7 @@ jobs:
 
         # Deploy the service
         gcloud run deploy $SERVICE_NAME \
-          --image gcr.io/$PROJECT_ID/$SERVICE_NAME:${{ github.sha }} \
+          --image gcr.io/lengolf-forms/$SERVICE_NAME:${{ github.sha }} \
           --platform managed \
           --region $REGION \
           --allow-unauthenticated \
