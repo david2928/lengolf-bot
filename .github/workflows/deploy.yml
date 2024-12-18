@@ -9,6 +9,7 @@ env:
   PROJECT_ID: lengolf-forms
   REGION: asia-southeast1
   SERVICE_NAME: lengolf-bot
+  REGISTRY: asia-southeast1-docker.pkg.dev
 
 jobs:
   deploy:
@@ -36,15 +37,22 @@ jobs:
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v0.2.1
 
-    - name: Configure Docker
+    - name: Configure Artifact Registry
       run: |-
-        gcloud auth configure-docker --quiet
+        # Configure docker to use gcloud credentials
+        gcloud auth configure-docker $REGISTRY --quiet
+        
+        # Create repository if it doesn't exist
+        gcloud artifacts repositories create lengolf-bot \
+          --repository-format=docker \
+          --location=$REGION \
+          --quiet || true
 
     - name: Build and Push Container
       run: |-
         echo "Building image for project: $PROJECT_ID"
-        docker build -t gcr.io/lengolf-forms/$SERVICE_NAME:${{ github.sha }} .
-        docker push gcr.io/lengolf-forms/$SERVICE_NAME:${{ github.sha }}
+        docker build -t $REGISTRY/$PROJECT_ID/lengolf-bot/$SERVICE_NAME:${{ github.sha }} .
+        docker push $REGISTRY/$PROJECT_ID/lengolf-bot/$SERVICE_NAME:${{ github.sha }}
 
     - name: Deploy to Cloud Run
       run: |-
@@ -56,7 +64,7 @@ jobs:
 
         # Deploy the service
         gcloud run deploy $SERVICE_NAME \
-          --image gcr.io/lengolf-forms/$SERVICE_NAME:${{ github.sha }} \
+          --image $REGISTRY/$PROJECT_ID/lengolf-bot/$SERVICE_NAME:${{ github.sha }} \
           --platform managed \
           --region $REGION \
           --allow-unauthenticated \
